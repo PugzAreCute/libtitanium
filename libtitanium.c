@@ -34,27 +34,22 @@
 #define DEBUG false
 #endif
 
-#define RELEASE "500.250.125"
-#define VERSION "#234 libtitanium DYNAMIC Sun, 6 Jun 2077 00:30:00 +9999"
-#define ARCHITECTURE "arm128" // Early access.
-#define SYSNAME "TitaniumOS"
-
 int uname(struct utsname *buf){
 	if(DEBUG) printf("[LibTitanium] uname() called.\n");
-
-	char* release = getenv("TITANIUM_RELEASE");
-	char* version = getenv("TITANIUM_VERSION");
-	char* architecture = getenv("TITANIUM_ARCHITECTURE");
-	char* sysname = getenv("TITANIUM_SYSNAME");
 
 	int (*uname_syscall)(struct utsname *buffer) = dlsym(RTLD_NEXT, "uname");
 	int exit_code = uname_syscall(buf);
 
+	char* release = getenv("TITANIUM_RELEASE") ?: buf->release;
+	char* version = getenv("TITANIUM_VERSION") ?: buf->version;
+	char* architecture = getenv("TITANIUM_ARCHITECTURE") ?: buf->machine;
+	char* sysname = getenv("TITANIUM_SYSNAME") ?: buf->sysname;
+
 	if(exit_code == 0){
-		strncpy(buf->release, release ?: RELEASE, sizeof(buf->release));
-		strncpy(buf->version, version ?: VERSION, sizeof(buf->version));
-		strncpy(buf->machine, architecture ?: ARCHITECTURE, sizeof(buf->machine));
-		strncpy(buf->sysname, sysname ?: SYSNAME, sizeof(buf->sysname));
+		strncpy(buf->release, release, sizeof(buf->release));
+		strncpy(buf->version, version, sizeof(buf->version));
+		strncpy(buf->machine, architecture, sizeof(buf->machine));
+		strncpy(buf->sysname, sysname, sizeof(buf->sysname));
 	} else {
 		if(DEBUG) printf("[LibTitanium] SYSCALL ERROR! %d\n", exit_code);
 	}
