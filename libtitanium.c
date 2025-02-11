@@ -27,6 +27,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <unistd.h>
+#include "libtitanium.h"
+
 
 #ifndef RELEASE
 #define DEBUG true
@@ -55,4 +58,41 @@ int uname(struct utsname *buf){
 	}
 
 	return exit_code;
+}
+
+int open(const char *pathname, int flags, ...) {
+	char* sysname = getenv("TITANIUM_SYSNAME");
+	char* proc_version = strcat(getenv("TITANIUM_PROC_VERSION"), "\n");
+
+	int (*open_syscall)(const char *, int, mode_t) = dlsym(RTLD_NEXT, "open");
+
+	if(DEBUG) printf("[LibTitanium] Intercepted open: %s\n", pathname);
+
+	if (strstr(pathname, "/proc/sys/kernel/ostype") && sysname) {
+		return titanium_open(sysname, flags);
+	} else if(strstr(pathname, "/proc/version") && proc_version){
+		return titanium_open(proc_version, flags);
+	}
+
+	return open_syscall(pathname, flags, 0);
+}
+
+int titanium_open(char* str, int flags, ...){
+
+	if(DEBUG) printf("[LibTitanium] titanium_open()");
+
+	int (*open_syscall)(const char *, int, mode_t) = dlsym(RTLD_NEXT, "open");
+
+	int fd = open_syscall("/dev/null", flags, 0);
+	if (fd < 0) return fd;	
+
+        int pipefd[2];
+	if (pipe(pipefd) == 0) {
+    	        write(pipefd[1], str, strlen(str));
+        	close(pipefd[1]);
+	        return pipefd[0]; 
+	}
+		
+	// Fallback
+	return fd;
 }
